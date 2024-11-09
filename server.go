@@ -48,7 +48,8 @@ func (g *GameHandler) GetTrainerActions(context context.Context, state *pb.State
     return &pb.TrainerActions{Actions: actions}, nil
 }
 func (g *GameHandler) GetPlayerActions(context context.Context, state *pb.State) (*pb.PlayerActions, error) {
-	g.debugLog(fmt.Sprintf("================================= cycle=%d.%d =================================", state.WorldModel.Cycle, state.WorldModel.StopedCycle))
+	g.debugLog(fmt.Sprintf("================================= cycle=%d.%d =================================", state.WorldModel.Cycle, state.WorldModel.StopedCycle),state.RegisterResponse.UniformNumber)
+	fmt.Printf("register response %v\n", state.RegisterResponse.UniformNumber)
 	actions := []*pb.PlayerAction{}
 	if state.WorldModel.GameModeType == pb.GameModeType_PlayOn {
 		if state.WorldModel.Self.IsGoalie {
@@ -67,7 +68,7 @@ func (g *GameHandler) GetPlayerActions(context context.Context, state *pb.State)
 					SimpleShoot:    true,
 					SimpleDribble:  true,
 					Cross:          true,
-					ServerSideDecision: false,
+					ServerSideDecision: true,
 				}},
 			})
 			actions = append(actions, &pb.PlayerAction{
@@ -83,7 +84,7 @@ func (g *GameHandler) GetPlayerActions(context context.Context, state *pb.State)
 			Action: &pb.PlayerAction_HeliosSetPlay{HeliosSetPlay: &pb.HeliosSetPlay{}},
 		})
 	}
-	g.debugLog(fmt.Sprintf("Actions: %v", actions))
+	g.debugLog(fmt.Sprintf("Actions: %v", actions),state.RegisterResponse.UniformNumber)
 	return &pb.PlayerActions{Actions: actions}, nil
 }
 
@@ -91,107 +92,106 @@ func (g *GameHandler) Register(ctx context.Context, req *pb.RegisterRequest) (*p
 	g.sharedLock.Lock()
 	defer g.sharedLock.Unlock()
 
-	// Assign a stable ClientId for the player based on the number of connections.
 	clientId := atomic.AddInt32(g.sharedNumberOfConnections, 1)
-    fmt.Printf("Registering agent %d \n", clientId)
+    fmt.Printf("Registering agent %d \n", req.UniformNumber)
 
-	// Create a log file for the new player
-	logFileName := fmt.Sprintf("logs/%d.log", clientId)
+	logFileName := fmt.Sprintf("logs/%d.log", req.UniformNumber)
 	logFile, err := os.Create(logFileName)
 	if err != nil {
 		return nil, fmt.Errorf("could not create log file: %v", err)
 	}
-    g.debugLog(fmt.Sprintf("Registering agent %d", clientId))
+    g.debugLog(fmt.Sprintf("Registering agent %d", clientId),clientId)
 	logger := log.New(logFile, "INFO: ", log.LstdFlags)
 
-	// Create a new GrpcAgent with a uniform number or decide one if needed
 	agent := &GrpcAgent{
 		agentType:    req.AgentType,
-		uniformNumber: req.UniformNumber,  // Can modify this if needed
+		uniformNumber: req.UniformNumber,  
 		logger:       logger,
 	}
 
-	// Save the agent using the stable ClientId
 	g.agents[clientId] = agent
 
-	// Log the agent's registration
-	g.debugLog(fmt.Sprintf("Agent %d registered with uniform number: %d", clientId, req.UniformNumber))
+	g.debugLog(fmt.Sprintf("Agent %d registered with uniform number: %d", clientId, req.UniformNumber),req.UniformNumber)
 
-	// Return the response with the assigned stable ClientId
 	return &pb.RegisterResponse{
-		ClientId:   clientId,      // Return the stable ClientId
+		ClientId:   clientId,      
 		TeamName:   req.TeamName,
-		UniformNumber: req.UniformNumber,  // Return the uniform number provided
+		UniformNumber: req.UniformNumber,  
 		AgentType:  req.AgentType,
 	}, nil
 }
 
 
 func (g *GameHandler) SendServerParams(ctx context.Context, params *pb.ServerParam) (*pb.Empty, error) {
+	g.sharedLock.Lock()
+	defer g.sharedLock.Unlock()
 	g.serverParams = params
 	return &pb.Empty{}, nil
 }
 
 func (g *GameHandler) SendPlayerParams(ctx context.Context, params *pb.PlayerParam) (*pb.Empty, error) {
+	g.sharedLock.Lock()
+	defer g.sharedLock.Unlock()
 	g.playerParams = params
 	return &pb.Empty{}, nil
 }
 
 func (g *GameHandler) SendPlayerType(ctx context.Context, playerType *pb.PlayerType) (*pb.Empty, error) {
-    g.sharedLock.Lock() // Lock the mutex to ensure exclusive access to playerTypes
-    defer g.sharedLock.Unlock() // Unlock the mutex when the function exits
+    g.sharedLock.Lock() 
+    defer g.sharedLock.Unlock() 
 
-    // fmt.Printf("Player type updated %v\n", playerType)
-    // fmt.Printf("Player id %d\n", playerType.Id)
     g.playerTypes[playerType.Id] = playerType
-    //fmt.Printf("Player type updated %v\n", g.playerTypes[playerType.Id])
-    //fmt.Println("Player type updated")
+
 
     return &pb.Empty{}, nil
 }
 
 func (g *GameHandler) SendInitMessage(ctx context.Context, initMessage *pb.InitMessage) (*pb.Empty, error) {
-	g.agents[initMessage.RegisterResponse.ClientId].debugMode = initMessage.DebugMode
+	g.sharedLock.Lock()
+	defer g.sharedLock.Unlock()
+	g.agents[initMessage.RegisterResponse.UniformNumber].debugMode = initMessage.DebugMode
 	return &pb.Empty{}, nil
 }
 
 func (g *GameHandler) SendByeCommand(ctx context.Context, resp *pb.RegisterResponse) (*pb.Empty, error) {
+	g.sharedLock.Lock()
+	defer g.sharedLock.Unlock()
 	delete(g.agents, resp.ClientId)
 	return &pb.Empty{}, nil
 }
 
-func (g *GameHandler) debugLog(message string) {
+func (g *GameHandler) debugLog(message string,uniformNumber int32) {
 	for _, agent := range g.agents {
-		if agent.logger != nil {
+		if agent.logger != nil && uniformNumber == agent.uniformNumber {
 			agent.logger.Println(message)
 		}
 	}
 }
 
 func (g *GameHandler) GetBestPlannerAction(ctx context.Context, request *pb.BestPlannerActionRequest) (*pb.BestPlannerActionResponse, error) {
-    // Log the details of the request
+	g.sharedLock.Lock()
+	defer g.sharedLock.Unlock()
     g.debugLog(fmt.Sprintf("GetBestPlannerAction cycle:%d pairs:%d unum:%d", 
         request.State.WorldModel.Cycle, 
         len(request.Pairs), 
-        request.State.RegisterResponse.UniformNumber))
+        request.RegisterResponse.UniformNumber),request.RegisterResponse.UniformNumber)
 
-    // Find the pair with the maximum evaluation value
     var bestIndex int32 = -1
-    maxEvaluation := math.Inf(-1) // Start with a very low number to find max
+    maxEvaluation := math.Inf(-1) 
 
-    // Iterate through the pairs to find the one with the highest evaluation
     for i := int32(0) ; i < int32(len(request.Pairs)) ; i++ {
         pair := request.Pairs[i]
-        if pair.Evaluation > maxEvaluation {
-            maxEvaluation = pair.Evaluation
+		if pair == nil {
+			continue
+		}
+        if pair.Action.TargetPoint.X > float32(maxEvaluation) {
+            maxEvaluation = float64(pair.Action.TargetPoint.X)
             bestIndex = i
         }
     }
 
-    // Log the selected best action
-    g.debugLog(fmt.Sprintf("Best action selected: %v", request.Pairs[bestIndex]))
+    g.debugLog(fmt.Sprintf("Best action selected: %v", request.Pairs[bestIndex]),request.RegisterResponse.UniformNumber)
 
-    // Return the response with the best action's index
     return &pb.BestPlannerActionResponse{Index: bestIndex}, nil
 }
 
