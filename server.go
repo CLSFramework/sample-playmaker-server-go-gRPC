@@ -13,9 +13,6 @@ import (
 	"net"
 )
 
-type Error struct {
-    message string
-}
 // GameHandler implements the GameServiceServer interface.
 type GameHandler struct {
 	pb.UnimplementedGameServer
