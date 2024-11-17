@@ -28,7 +28,7 @@ type GrpcAgent struct {
 	agentType  pb.AgentType
 	uniformNumber int32
 	logger     *log.Logger
-    debugMode                 bool
+    debugMode        bool
 }
 func (g *GameHandler) GetCoachActions(context context.Context, state *pb.State) (*pb.CoachActions, error) {
     actions := []*pb.CoachAction{}
@@ -46,7 +46,6 @@ func (g *GameHandler) GetTrainerActions(context context.Context, state *pb.State
 }
 func (g *GameHandler) GetPlayerActions(context context.Context, state *pb.State) (*pb.PlayerActions, error) {
 	g.debugLog(fmt.Sprintf("================================= cycle=%d.%d =================================", state.WorldModel.Cycle, state.WorldModel.StopedCycle),state.RegisterResponse.UniformNumber)
-	fmt.Printf("register response %v\n", state.RegisterResponse.UniformNumber)
 	actions := []*pb.PlayerAction{}
 	if state.WorldModel.GameModeType == pb.GameModeType_PlayOn {
 		if state.WorldModel.Self.IsGoalie {
@@ -87,10 +86,9 @@ func (g *GameHandler) GetPlayerActions(context context.Context, state *pb.State)
 
 func (g *GameHandler) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
 	g.sharedLock.Lock()
-	defer g.sharedLock.Unlock()
+	defer g.sharedLock.Unlock()  
 
 	clientId := atomic.AddInt32(g.sharedNumberOfConnections, 1)
-    fmt.Printf("Registering agent %d \n", req.UniformNumber)
 
 	logFileName := fmt.Sprintf("logs/%d.log", req.UniformNumber)
 	logFile, err := os.Create(logFileName)
@@ -134,12 +132,10 @@ func (g *GameHandler) SendPlayerParams(ctx context.Context, params *pb.PlayerPar
 }
 
 func (g *GameHandler) SendPlayerType(ctx context.Context, playerType *pb.PlayerType) (*pb.Empty, error) {
+	//change base on grpc agent
     g.sharedLock.Lock() 
     defer g.sharedLock.Unlock() 
-
     g.playerTypes[playerType.Id] = playerType
-
-
     return &pb.Empty{}, nil
 }
 

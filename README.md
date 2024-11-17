@@ -3,7 +3,7 @@
 [![Documentation Status](https://readthedocs.org/projects/clsframework/badge/?version=latest)](https://clsframework.github.io/docs/introduction/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This repository contains a sample decision-making server for the RoboCup 2D Soccer Simulation, which allows you to create a team by using Go. This server is compatible with the [Cross Language Soccer Framework](https://arxiv.org/pdf/2406.05621). This server is written in Go and uses gRPC to communicate with the [proxy](https://github.com/CLSFramework/soccer-simulation-proxy).
+This repository contains a sample decision-making server for the RoboCup 2D Soccer Simulation, which allows you to create a team by using Go. This server is compatible with the [Cross Language Soccer Framework](https://arxiv.org/pdf/2406.05621). This server is written in Golang and uses gRPC to communicate with the [proxy](https://github.com/CLSFramework/soccer-simulation-proxy).
 
 The Soccer Simulation Server sends the observations to the proxy, which processes the data, create state message and sends it to the decision-making server. The decision-making server then sends the actions to the proxy, and then the proxy convert actions to the server commands and sends them to the server.
 
@@ -21,13 +21,13 @@ Install the pre-requisites using the command below:
 sudo apt-get install fuse #Used to run AppImages
 ```
 
-Clone this repository & install the required Go libraries (such as gRPC). Don't forget to activate your virtual environment!
+Clone this repository & install the required Golang libraries (such as gRPC). Don't forget to activate your virtual environment!
 
 ``` Bash
 git clone #add repo link
-cd playmaker-server-go-grpc
+cd sample-playmaker-server-go-grpc
 
-go mod tidy # Install the required Go libraries
+go mod tidy # Install the required Golang libraries
 
 
 ./generate.sh # Generate the gRPC files
@@ -41,7 +41,7 @@ sh download-rcssserver.sh # Download the soccer simulation server
 popd
 ```
 
-Next, download the soccer proxy, which uses C++ to read and pre-processes state data and passes them to the Go server (this project) for decision-making.
+Next, download the soccer proxy, which uses C++ to read and pre-processes state data and passes them to the Golang server (this project) for decision-making.
 
 ``` Bash
 pushd scripts
@@ -86,7 +86,7 @@ Launch the opponent team, start the monitor app image. press <kbd>Ctrl</kbd> + <
 
 ## How to change the code
 
-The `server.py` file contains the logic in 3 main functions:
+The `server.go` file contains the logic in 3 main functions:
 `GetPlayerActions` receives a game state, and returns a list of actions for a player for for that cycle.
 The actions we can output are equivalent to the Helios Base (Proxy), which are abstracted into multiple levels.
 You can use actions such as `DoDash`, `DoTurn`, `DoKick` which directly apply force, or use actions such as `GoToPoint`, `SmartKick`, `Shoot` or [more](https://clsframework.github.io/docs/idl/).
@@ -98,11 +98,11 @@ You can also use `GetTrainerActions` to move the players & the ball to make repe
 ## Why & How it works
 
 Originally the RoboCup 2D Soccer Simulation teams used C++, as the main code base (Agent2D aka Helios Base) was written in this language due to its performance.
-Due to the popularity of Go in Machine Learning & AI spaces we decided to create a Go platform which would be equivalent to Agent 2D.
-However, using Go alone was too slow as preprocessing sensor information & tasks such as localization took too long.
+Due to the popularity of Golang we decided to create a Golang platform which would be equivalent to Agent 2D.
+However, using Golang alone was too slow as preprocessing sensor information & tasks such as localization took too long.
 
 For this reason we have split up the code into two segments:
-The data processing section in proxy, which creates a World Model (state), and passes it to Go for planning to occur. This repository uses gRPC to pass along the World Model, but there is a sister-repo which is compatible with thrift.
+The data processing section in proxy, which creates a World Model (state), and passes it to Golang for planning to occur. This repository uses gRPC to pass along the World Model, but there is a sister-repo which is compatible with thrift.
 
 ```mermaid
 sequenceDiagram
@@ -133,7 +133,7 @@ You can change the configuration of the RoboCup server and change parameters suc
 
 ### Modifying Proxy & Running proxy and server seperately
 
-If you want to modify the algorithms of the base (such as ball interception, shooting, localization, etc.) you must modify the code of the [proxy repo](https://github.com/CLSFramework/soccer-simulation-proxy). After re-building from source, you can run the proxy by using `./start.sh --rpc-type grpc` in the bin folder of the proxy, and run the gRPC server with `Go3 server.py` in this repo's directory. It is highly recommended to launch the Go server before the proxy.
+If you want to modify the algorithms of the base (such as ball interception, shooting, localization, etc.) you must modify the code of the [proxy repo](https://github.com/CLSFramework/soccer-simulation-proxy). After re-building from source, you can run the proxy by using `./start.sh --rpc-type grpc` in the bin folder of the proxy, and run the gRPC server with `go run server.go` in this repo's directory. It is highly recommended to launch the Golang server before the proxy.
 
 You can modify the rpc port by adding the argument `--rpc-port [VALUE]`, where the default is 50051.
 

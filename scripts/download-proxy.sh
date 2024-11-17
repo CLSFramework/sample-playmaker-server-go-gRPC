@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# check proxy directory exists, if exists, remove it
+# Check proxy directory exists, if exists, remove it
 if [ -d proxy ]; then
     echo "proxy directory exists, remove it"
     rm -rf proxy
@@ -32,6 +32,10 @@ wget $(curl -s "https://api.github.com/repos/clsframework/soccer-simulation-prox
 tar -xvf soccer-simulation-proxy.tar.gz
 
 mv soccer-simulation-proxy/* .
+
+echo "Inserting code to start.sh..."
+
+sed -i 's/rpc_type="thrift"/rpc_type="grpc"/' start.sh
 
 rm -rf soccer-simulation-proxy
 
